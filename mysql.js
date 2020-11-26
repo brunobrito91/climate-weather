@@ -76,22 +76,3 @@ const Station = sequelize.define('station', {
 });
 
 module.exports = {Station};
-
-//
-//     'Climate ID': '1010066',
-//     'Station ID': '14',
-//     'WMO ID': '',
-//     'TC ID': '',
-//     'Latitude (Decimal Degrees)': '48.87',
-//     'Longitude (Decimal Degrees)': '-123.28',
-//     Latitude: '485200000',
-//     Longitude: '-1231700000',
-//     'Elevation (m)': '4',
-//     'First Year': '1984',
-//     'Last Year': '1996',
-//     'HLY First Year': '',
-//     'HLY Last Year': '',
-//     'DLY First Year': '1984',
-//     'DLY Last Year': '1996',
-//     'MLY First Year': '1984',
-//     'MLY Last Year': '1996'

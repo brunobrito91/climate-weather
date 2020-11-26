@@ -62,7 +62,6 @@ async function retrieveStationInventory() {
 }
 
 
-
 try {
     retrieveStationInventory()
         .then((stations) => {
@@ -92,8 +91,8 @@ try {
             //         });
             //     });
             // });
-            retrieveHourlyData(stations[28]).then((hourlyData) => {
-                console.log('hourly data', hourlyData);
+            retrieveDailyData(stations[28]).then((hourlyData) => {
+                console.log('daily data', hourlyData);
             });
         }).catch((e) => {
         console.error(e);
@@ -107,8 +106,8 @@ async function downloadHourlyData(station) {
     console.log(`download hourly data from ${station['Station ID']} - ${station['Name']}`);
     try {
         const hourlyData = [];
-        for (let year = station['HLY First Year']; year <= station['HLY Last Year']; year++ ){
-            for (let month = 1; month <= 12; month++ ){
+        for (let year = station['HLY First Year']; year <= station['HLY Last Year']; year++) {
+            for (let month = 1; month <= 12; month++) {
                 let hourlyDataUrl = `https://climate.weather.gc.ca/climate_data/bulk_data_e.html?format=csv&stationID=${station['Station ID']}&Year=${year}&Month=${month}&timeframe=1&submit= Download+Data`;
                 const response = await axios.get(hourlyDataUrl);
                 const {data} = response;
@@ -120,7 +119,7 @@ async function downloadHourlyData(station) {
                         relax_column_count: true
                     }));
                 for await (const record of parser) {
-                    if (Object.keys(record).length > 9){
+                    if (Object.keys(record).length > 9) {
                         console.log('record', record['Date/Time']);
                         hourlyData.push(record);
                     }
@@ -136,6 +135,49 @@ async function downloadHourlyData(station) {
 async function retrieveHourlyData(station) {
     try {
         return await downloadHourlyData(station);
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+async function downloadDailyData(station) {
+    console.log(`download daily data from ${station['Station ID']} - ${station['Name']}`);
+    try {
+        const dailyData = [];
+        for (let year = station['DLY First Year']; year <= station['DLY Last Year']; year++) {
+            let dailyDataUrl = `https://climate.weather.gc.ca/climate_data/bulk_data_e.html?format=csv&stationID=${station['Station ID']}&Year=${year}&timeframe=2&submit=%20Download+Data`;
+            const response = await axios.get(dailyDataUrl);
+            const {data} = response;
+            // console.log('data', data);
+            const parser = Readable.from([data]).pipe(
+                parse({
+                    from_line: 1,
+                    columns: true,
+                    relax_column_count: true
+                }));
+            for await (const record of parser) {
+                let count = 0;
+                Object.entries(record).map(entry => {
+                    if (entry[1] === '') {
+                        //delete record[entry[0]];
+                        count = count + 1;
+                    }
+                });
+                if (Object.keys(record).length - count > 8) {
+                    console.log('record', record['Date/Time']);
+                    dailyData.push(record);
+                }
+            }
+        }
+        return dailyData;
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+async function retrieveDailyData(station) {
+    try {
+        return await downloadDailyData(station);
     } catch (e) {
         console.error(e);
     }
