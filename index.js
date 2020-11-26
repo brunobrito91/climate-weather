@@ -17,7 +17,7 @@ const config = {
 };
 
 async function downloadStationInventory(downloadUrl) {
-    console.log(downloadUrl);
+    console.log('downloadUrl', downloadUrl);
     try {
         const response = await axios.get(downloadUrl);
         const {data} = response;
@@ -29,7 +29,7 @@ async function downloadStationInventory(downloadUrl) {
                 columns: true,
             }));
         for await (const record of parser) {
-            // console.log('record', record);
+            console.log('[station] record - ', record['Station ID']);
             stations.push(record);
         }
         return stations;
@@ -44,7 +44,7 @@ async function retrieveDownloadUrlForStationInventory() {
         const {data} = response;
         const rawData = data.replace(')]}\'', '');
         const downloadData = JSON.parse(rawData);
-        console.log('downloadData', downloadData);
+        // console.log('downloadData', downloadData);
         const {downloadUrl} = downloadData;
         return downloadUrl;
     } catch (e) {
@@ -65,7 +65,7 @@ async function retrieveStationInventory() {
 try {
     retrieveStationInventory()
         .then((stations) => {
-            console.log('stations', stations[28]);
+            // console.log('stations', stations[28]);
             // Station.sync({force: true}).then(function () {
             //     stations.forEach(station => {
             //         Station.create({
@@ -91,8 +91,14 @@ try {
             //         });
             //     });
             // });
-            retrieveDailyData(stations[28]).then((hourlyData) => {
-                console.log('daily data', hourlyData);
+            retrieveHourlyData(stations[28]).then((hourlyData) => {
+                console.log('hourly data', hourlyData);
+            });
+            retrieveDailyData(stations[28]).then((dailyData) => {
+                console.log('daily data', dailyData);
+            });
+            retrieveMonthlyData(stations[28]).then((monthlyData) => {
+                console.log('monthly data', monthlyData);
             });
         }).catch((e) => {
         console.error(e);
@@ -120,7 +126,7 @@ async function downloadHourlyData(station) {
                     }));
                 for await (const record of parser) {
                     if (Object.keys(record).length > 9) {
-                        console.log('record', record['Date/Time']);
+                        console.log('[hourly] record - ', record['Date/Time']);
                         hourlyData.push(record);
                     }
                 }
@@ -164,7 +170,7 @@ async function downloadDailyData(station) {
                     }
                 });
                 if (Object.keys(record).length - count > 8) {
-                    console.log('record', record['Date/Time']);
+                    console.log('[daily] record - ', record['Date/Time']);
                     dailyData.push(record);
                 }
             }
@@ -178,6 +184,48 @@ async function downloadDailyData(station) {
 async function retrieveDailyData(station) {
     try {
         return await downloadDailyData(station);
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+async function downloadMonthlyData(station) {
+    console.log(`download monthly data from ${station['Station ID']} - ${station['Name']}`);
+    try {
+        const monthlyData = [];
+        let monthlyDataUrl = `https://climate.weather.gc.ca/climate_data/bulk_data_e.html?format=csv&stationID=${station['Station ID']}&timeframe=3&submit=%20Download+Data`;
+        const response = await axios.get(monthlyDataUrl);
+        const {data} = response;
+        // console.log('data', data);
+        const parser = Readable.from([data]).pipe(
+            parse({
+                from_line: 1,
+                columns: true,
+                relax_column_count: true
+            }));
+        for await (const record of parser) {
+            let count = 0;
+            Object.entries(record).map(entry => {
+                if (entry[1] === '') {
+                    //delete record[entry[0]];
+                    count = count + 1;
+                }
+            });
+            if (Object.keys(record).length - count > 7) {
+                console.log('[monthly] record - ', record['Date/Time']);
+                monthlyData.push(record);
+            }
+
+        }
+        return monthlyData;
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+async function retrieveMonthlyData(station) {
+    try {
+        return await downloadMonthlyData(station);
     } catch (e) {
         console.error(e);
     }
