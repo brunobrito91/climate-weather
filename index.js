@@ -66,47 +66,77 @@ async function retrieveStationInventory() {
     }
 }
 
+async function persistStations(stations) {
+    const stationCreation = await stations
+        // .filter(station => {
+        //     return station['Station ID'] === '14'
+        //     || station['Station ID'] === '15';
+        // })
+        .map(async station => {
+            console.log(`CREATING STATION: ${station['Station ID']} - ${stations.indexOf(station) + 1} of ${stations.length}`);
+            await StationRepository.create(station);
+            console.log(`STATION CREATED: ${station['Station ID']} - ${stations.indexOf(station) + 1} of ${stations.length}`);
+        });
+    await Promise.all(stationCreation);
+}
+
+async function persistMonthlyData(monthlyDataList) {
+    const monthlyDataCreation = await monthlyDataList
+        .map(async monthlyData => {
+            console.log(`CREATING MONTHLY DATA: ${monthlyData['Climate ID']} - ${monthlyData['Date/Time']} - ${monthlyDataList.indexOf(monthlyData) + 1} of ${monthlyDataList.length}`);
+            await MonthlyRepository.create(monthlyData);
+            console.log(`MONTHLY DATA CREATED: ${monthlyData['Climate ID']} - ${monthlyData['Date/Time']} - ${monthlyDataList.indexOf(monthlyData) + 1} of ${monthlyDataList.length}`);
+        });
+    await Promise.all(monthlyDataCreation);
+}
+
+async function retrieveMonthlyDataLists(stations) {
+    console.log('STARTED THE MONTHLY DATA LIST RETRIEVE');
+    const monthlyDataLists = [];
+    const monthlyDataRetrieve = await stations
+        // .filter(station => {
+        //     return station['Station ID'] === '14'
+        //         || station['Station ID'] === '15';
+        // })
+        .map(async station => {
+            console.log(`STARTED THE MONTHLY DATA RETRIEVE: ${station['Name']} - ${stations.indexOf(station) + 1} of ${stations.length}`);
+            const monthlyDataList = await retrieveMonthlyData(station);
+            console.log(`FINISHED THE MONTHLY DATA RETRIEVE: ${station['Name']} - ${stations.indexOf(station) + 1} of ${stations.length}`);
+            monthlyDataLists.push(monthlyDataList);
+        });
+    await Promise.all(monthlyDataRetrieve);
+    console.log('FINISHED THE MONTHLY DATA LIST RETRIEVE');
+    return monthlyDataLists;
+}
+
+async function persistMonthlyDataLists(monthlyDataLists) {
+    console.log('STARTED THE MONTHLY DATA LIST PERSISTENCE');
+    const monthlyDataListCreation = await monthlyDataLists
+        .map(async monthlyDataList =>{
+            console.log(`STARTED THE MONTHLY DATA PERSISTENCE: ${monthlyDataLists.indexOf(monthlyDataList) + 1} of ${monthlyDataLists.length}`);
+            await persistMonthlyData(monthlyDataList);
+            console.log(`FINISHED THE MONTHLY DATA PERSISTENCE: ${monthlyDataLists.indexOf(monthlyDataList) + 1} of ${monthlyDataLists.length}`);
+        });
+    await Promise.all(monthlyDataListCreation);
+    console.log('FINISHED THE MONTHLY DATA LIST PERSISTENCE');
+}
+
 async function main() {
     try {
         console.log('STARTED AT: ', new Date());
         const stations = await retrieveStationInventory();
-        const stationCreation = await stations
-            // .filter(station => {
-            //     return station['Station ID'] === '14'
-            //     // || station['Station ID'] === '15';
-            // })
-            .map(async station => {
-                console.log('creating station: ', station['Station ID']);
-                await StationRepository.create(station);
-                console.log('station created: ', station['Station ID']);
-            });
+        await persistStations(stations);
+
+        const monthlyDataLists = await retrieveMonthlyDataLists(stations);
+        await persistMonthlyDataLists(monthlyDataLists);
+
+        console.log('FINISHED AT: ', new Date());
         // retrieveHourlyData(station).then((hourlyData) => {
         //     console.log('hourly data', hourlyData);
         // });
         // retrieveDailyData(station).then((dailyData) => {
         //     console.log('daily data', dailyData);
         // });
-        await Promise.all(stationCreation);
-
-        const dataCreation = await stations
-            // .filter(station => {
-            //     return station['Station ID'] === '14'
-            //     // || station['Station ID'] === '15';
-            // })
-            .map(async station => {
-                const monthlyDataList = await retrieveMonthlyData(station);
-                const monthlyDataCreation = await monthlyDataList
-                    .map(async monthlyData => {
-                        console.log('creating monthly data: ', station['Station ID']);
-                        await MonthlyRepository.create(monthlyData);
-                        console.log('monthly data created: ', station['Station ID']);
-                    });
-                await Promise.all(monthlyDataCreation);
-            });
-        await Promise.all(dataCreation);
-
-        console.log('FINISHED AT: ', new Date());
-
     } catch (e) {
         console.error(e);
     }
@@ -132,7 +162,7 @@ async function downloadHourlyData(station) {
                     }));
                 for await (const record of parser) {
                     if (Object.keys(record).length > 9) {
-                        console.log('[hourly] record - ', record['Date/Time']);
+                        // console.log('[hourly] record - ', record['Date/Time']);
                         hourlyData.push(record);
                     }
                 }
@@ -176,7 +206,7 @@ async function downloadDailyData(station) {
                     }
                 });
                 if (Object.keys(record).length - count > 8) {
-                    console.log('[daily] record - ', record['Date/Time']);
+                    // console.log('[daily] record - ', record['Date/Time']);
                     dailyData.push(record);
                 }
             }
@@ -202,7 +232,7 @@ async function downloadMonthlyData(station) {
         let monthlyDataUrl = `https://climate.weather.gc.ca/climate_data/bulk_data_e.html?format=csv&stationID=${station['Station ID']}&timeframe=3&submit=%20Download+Data`;
         const response = await axios.get(monthlyDataUrl);
         const {data} = response;
-        console.log('data', data);
+        // console.log('data', data);
         const parser = Readable.from([data]).pipe(
             parse({
                 from_line: 1,
