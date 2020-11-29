@@ -3,6 +3,8 @@ const parse = require('csv-parse');
 const {Readable} = require("stream");
 const StationDao = require('./stationDao');
 const MonthlyDao = require('./monthlyDataDao');
+const DailyDao = require('./dailyDataDao');
+const HourlyDao = require('./hourlyDataDao');
 const MysqlRepository = require('./mysqlRepository');
 
 const requestDownloadUrl = 'https://drive.google.com/uc?id=1egfzGgzUb0RFu_EE5AYFZtsyXPfZ11y2&authuser=0&export=download';
@@ -18,8 +20,11 @@ const config = {
     headers: headers
 };
 
-const StationRepository = new StationDao(new MysqlRepository());
-const MonthlyRepository = new MonthlyDao(new MysqlRepository());
+const repository = new MysqlRepository();
+const StationRepository = new StationDao(repository);
+const MonthlyRepository = new MonthlyDao(repository);
+const DailyRepository = new DailyDao(repository);
+const HourlyRepository = new HourlyDao(repository);
 
 async function downloadStationInventory(downloadUrl) {
     console.log('downloadUrl', downloadUrl);
@@ -58,85 +63,167 @@ async function retrieveDownloadUrlForStationInventory() {
 }
 
 async function retrieveStationInventory() {
+    console.log('STARTED THE STATION RETRIEVE AT: ', new Date());
     try {
         const downloadUrl = await retrieveDownloadUrlForStationInventory();
         return await downloadStationInventory(downloadUrl);
     } catch (e) {
         console.error(e);
+    } finally {
+        console.log('FINISHED THE STATION RETRIEVE AT: ', new Date());
     }
 }
 
 async function persistStations(stations) {
-    const stationCreation = await stations
-        // .filter(station => {
-        //     return station['Station ID'] === '14'
-        //     || station['Station ID'] === '15';
-        // })
-        .map(async station => {
-            console.log(`CREATING STATION: ${station['Station ID']} - ${stations.indexOf(station) + 1} of ${stations.length}`);
-            await StationRepository.create(station);
-            console.log(`STATION CREATED: ${station['Station ID']} - ${stations.indexOf(station) + 1} of ${stations.length}`);
+    console.log('STARTED THE STATION PERSISTENCE AT: ', new Date());
+    const stationsFiltered = stations
+        .filter(station => {
+            return station['Station ID'] === '52'
+                || station['Station ID'] === '65';
+            // return station['Station ID'] < 150;
         });
-    await Promise.all(stationCreation);
+    for (const station of stationsFiltered) {
+        console.log(`CREATING STATION: ${station['Station ID']} - ${stations.indexOf(station) + 1} of ${stations.length}`);
+        await StationRepository.create(station);
+        console.log(`STATION CREATED: ${station['Station ID']} - ${stations.indexOf(station) + 1} of ${stations.length}`);
+    }
+    console.log('FINISHED THE STATION PERSISTENCE AT: ', new Date());
 }
 
 async function persistMonthlyData(monthlyDataList) {
-    const monthlyDataCreation = await monthlyDataList
-        .map(async monthlyData => {
-            console.log(`CREATING MONTHLY DATA: ${monthlyData['Climate ID']} - ${monthlyData['Date/Time']} - ${monthlyDataList.indexOf(monthlyData) + 1} of ${monthlyDataList.length}`);
-            await MonthlyRepository.create(monthlyData);
-            console.log(`MONTHLY DATA CREATED: ${monthlyData['Climate ID']} - ${monthlyData['Date/Time']} - ${monthlyDataList.indexOf(monthlyData) + 1} of ${monthlyDataList.length}`);
-        });
-    await Promise.all(monthlyDataCreation);
+    console.log(`STARTED THE MONTHLY DATA PERSISTENCE`);
+    for (const monthlyData of monthlyDataList) {
+        console.log(`CREATING MONTHLY DATA: ${monthlyData['Climate ID']} - ${monthlyData['Date/Time']} - ${monthlyDataList.indexOf(monthlyData) + 1} of ${monthlyDataList.length}`);
+        await MonthlyRepository.create(monthlyData);
+        console.log(`MONTHLY DATA CREATED: ${monthlyData['Climate ID']} - ${monthlyData['Date/Time']} - ${monthlyDataList.indexOf(monthlyData) + 1} of ${monthlyDataList.length}`);
+    }
+    console.log(`FINISHED THE MONTHLY DATA PERSISTENCE`);
+}
+
+async function persistDailyData(dailyDataList) {
+    console.log(`STARTED THE DAILY DATA PERSISTENCE`);
+    for (const dailyData of dailyDataList) {
+        console.log(`CREATING DAILY DATA: ${dailyData['Climate ID']} - ${dailyData['Date/Time']} - ${dailyDataList.indexOf(dailyData) + 1} of ${dailyDataList.length}`);
+        await DailyRepository.create(dailyData);
+        console.log(`DAILY DATA CREATED: ${dailyData['Climate ID']} - ${dailyData['Date/Time']} - ${dailyDataList.indexOf(dailyData) + 1} of ${dailyDataList.length}`);
+    }
+    console.log(`FINISHED THE DAILY DATA PERSISTENCE`);
+}
+
+async function persistHourlyData(hourlyDataList) {
+    console.log(`STARTED THE HOURLY DATA PERSISTENCE`);
+    for (const hourlyData of hourlyDataList) {
+        console.log(`CREATING HOURLY DATA: ${hourlyData['Climate ID']} - ${hourlyData['Date/Time']} - ${hourlyDataList.indexOf(hourlyData) + 1} of ${hourlyDataList.length}`);
+        await HourlyRepository.create(hourlyData);
+        console.log(`HOURLY DATA CREATED: ${hourlyData['Climate ID']} - ${hourlyData['Date/Time']} - ${hourlyDataList.indexOf(hourlyData) + 1} of ${hourlyDataList.length}`);
+    }
+    console.log(`FINISHED THE HOURLY DATA PERSISTENCE`);
 }
 
 async function retrieveMonthlyDataLists(stations) {
-    console.log('STARTED THE MONTHLY DATA LIST RETRIEVE');
+    console.log('STARTED THE MONTHLY DATA LIST RETRIEVE AT: ', new Date());
     const monthlyDataLists = [];
-    const monthlyDataRetrieve = await stations
-        // .filter(station => {
-        //     return station['Station ID'] === '14'
-        //         || station['Station ID'] === '15';
-        // })
-        .map(async station => {
-            console.log(`STARTED THE MONTHLY DATA RETRIEVE: ${station['Name']} - ${stations.indexOf(station) + 1} of ${stations.length}`);
-            const monthlyDataList = await retrieveMonthlyData(station);
-            console.log(`FINISHED THE MONTHLY DATA RETRIEVE: ${station['Name']} - ${stations.indexOf(station) + 1} of ${stations.length}`);
-            monthlyDataLists.push(monthlyDataList);
+    const stationsFiltered = stations
+        .filter(station => {
+            return station['Station ID'] === '52'
+                || station['Station ID'] === '65';
+            // return station['Station ID'] < 50;
         });
-    await Promise.all(monthlyDataRetrieve);
-    console.log('FINISHED THE MONTHLY DATA LIST RETRIEVE');
+    for (const station of stationsFiltered) {
+        console.log(`STARTED THE MONTHLY DATA RETRIEVE: ${station['Name']} - ${stations.indexOf(station) + 1} of ${stations.length}`);
+        const monthlyDataList = await retrieveMonthlyData(station);
+        console.log(`FINISHED THE MONTHLY DATA RETRIEVE: ${station['Name']} - ${stations.indexOf(station) + 1} of ${stations.length}`);
+        monthlyDataLists.push(monthlyDataList);
+    }
+    console.log('FINISHED THE MONTHLY DATA LIST RETRIEVE AT: ', new Date());
     return monthlyDataLists;
 }
 
-async function persistMonthlyDataLists(monthlyDataLists) {
-    console.log('STARTED THE MONTHLY DATA LIST PERSISTENCE');
-    const monthlyDataListCreation = await monthlyDataLists
-        .map(async monthlyDataList =>{
-            console.log(`STARTED THE MONTHLY DATA PERSISTENCE: ${monthlyDataLists.indexOf(monthlyDataList) + 1} of ${monthlyDataLists.length}`);
-            await persistMonthlyData(monthlyDataList);
-            console.log(`FINISHED THE MONTHLY DATA PERSISTENCE: ${monthlyDataLists.indexOf(monthlyDataList) + 1} of ${monthlyDataLists.length}`);
+async function retrieveDailyDataLists(stations) {
+    console.log('STARTED THE DAILY DATA LIST RETRIEVE AT: ', new Date());
+    const dailyDataLists = [];
+    const stationsFiltered = stations
+        .filter(station => {
+            return station['Station ID'] === '52'
+                || station['Station ID'] === '65';
+            // return station['Station ID'] < 50;
         });
-    await Promise.all(monthlyDataListCreation);
-    console.log('FINISHED THE MONTHLY DATA LIST PERSISTENCE');
+    for (const station of stationsFiltered) {
+        console.log(`STARTED THE DAILY DATA RETRIEVE: ${station['Name']} - ${stations.indexOf(station) + 1} of ${stations.length}`);
+        const dailyDataList = await retrieveDailyData(station);
+        console.log(`FINISHED THE DAILY DATA RETRIEVE: ${station['Name']} - ${stations.indexOf(station) + 1} of ${stations.length}`);
+        dailyDataLists.push(dailyDataList);
+    }
+    console.log('FINISHED THE DAILY DATA LIST RETRIEVE AT: ', new Date());
+    return dailyDataLists;
+}
+
+async function retrieveHourlyDataLists(stations) {
+    console.log('STARTED THE HOURLY DATA LIST RETRIEVE AT: ', new Date());
+    const hourlyDataLists = [];
+    const stationsFiltered = stations
+        .filter(station => {
+            return station['Station ID'] === '52'
+                || station['Station ID'] === '65';
+            // return station['Station ID'] < 150;
+        });
+    for (const station of stationsFiltered) {
+        console.log(`STARTED THE HOURLY DATA RETRIEVE: ${station['Name']} - ${stations.indexOf(station) + 1} of ${stations.length}`);
+        const hourlyDataList = await retrieveHourlyData(station);
+        console.log(`FINISHED THE HOURLY DATA RETRIEVE: ${station['Name']} - ${stations.indexOf(station) + 1} of ${stations.length}`);
+        hourlyDataLists.push(hourlyDataList);
+    }
+    console.log('FINISHED THE HOURLY DATA LIST RETRIEVE AT: ', new Date());
+    return hourlyDataLists;
+}
+
+async function persistMonthlyDataLists(monthlyDataLists) {
+    console.log('STARTED THE MONTHLY DATA LISTS PERSISTENCE AT: ', new Date());
+    for (const monthlyDataList of monthlyDataLists) {
+        console.log(`STARTED THE MONTHLY DATA LIST PERSISTENCE: ${monthlyDataLists.indexOf(monthlyDataList) + 1} of ${monthlyDataLists.length}`);
+        await persistMonthlyData(monthlyDataList);
+        console.log(`FINISHED THE MONTHLY DATA LIST PERSISTENCE: ${monthlyDataLists.indexOf(monthlyDataList) + 1} of ${monthlyDataLists.length}`);
+    }
+    console.log('FINISHED THE MONTHLY DATA LISTS PERSISTENCE AT: ', new Date());
+}
+
+async function persistDailyDataLists(dailyDataLists) {
+    console.log('STARTED THE DAILY DATA LISTS PERSISTENCE AT: ', new Date());
+    for (const dailyDataList of dailyDataLists) {
+        console.log(`STARTED THE DAILY DATA LIST PERSISTENCE: ${dailyDataLists.indexOf(dailyDataList) + 1} of ${dailyDataLists.length}`);
+        await persistDailyData(dailyDataList);
+        console.log(`FINISHED THE DAILY DATA LIST PERSISTENCE: ${dailyDataLists.indexOf(dailyDataList) + 1} of ${dailyDataLists.length}`);
+    }
+    console.log('FINISHED THE DAILY DATA LISTS PERSISTENCE AT: ', new Date());
+}
+
+async function persistHourlyDataLists(hourlyDataLists) {
+    console.log('STARTED THE HOURLY DATA LISTS PERSISTENCE AT: ', new Date());
+    for (const hourlyDataList of hourlyDataLists) {
+        console.log(`STARTED THE HOURLY DATA LIST PERSISTENCE: ${hourlyDataLists.indexOf(hourlyDataList) + 1} of ${hourlyDataLists.length}`);
+        await persistHourlyData(hourlyDataList);
+        console.log(`FINISHED THE HOURLY DATA LIST PERSISTENCE: ${hourlyDataLists.indexOf(hourlyDataList) + 1} of ${hourlyDataLists.length}`);
+    }
+    console.log('FINISHED THE HOURLY DATA LISTS PERSISTENCE AT: ', new Date());
 }
 
 async function main() {
     try {
         console.log('STARTED AT: ', new Date());
+
         const stations = await retrieveStationInventory();
         await persistStations(stations);
 
-        const monthlyDataLists = await retrieveMonthlyDataLists(stations);
-        await persistMonthlyDataLists(monthlyDataLists);
+        // const monthlyDataLists = await retrieveMonthlyDataLists(stations);
+        // await persistMonthlyDataLists(monthlyDataLists);
+        //
+        // const dailyDataLists = await retrieveDailyDataLists(stations);
+        // await persistDailyDataLists(dailyDataLists);
+
+        const hourlyDataLists = await retrieveHourlyDataLists(stations);
+        await persistHourlyDataLists(hourlyDataLists);
 
         console.log('FINISHED AT: ', new Date());
-        // retrieveHourlyData(station).then((hourlyData) => {
-        //     console.log('hourly data', hourlyData);
-        // });
-        // retrieveDailyData(station).then((dailyData) => {
-        //     console.log('daily data', dailyData);
-        // });
     } catch (e) {
         console.error(e);
     }
@@ -148,22 +235,24 @@ async function downloadHourlyData(station) {
     console.log(`download hourly data from ${station['Station ID']} - ${station['Name']}`);
     try {
         const hourlyData = [];
-        for (let year = station['HLY First Year']; year <= station['HLY Last Year']; year++) {
-            for (let month = 1; month <= 12; month++) {
-                let hourlyDataUrl = `https://climate.weather.gc.ca/climate_data/bulk_data_e.html?format=csv&stationID=${station['Station ID']}&Year=${year}&Month=${month}&timeframe=1&submit= Download+Data`;
-                const response = await axios.get(hourlyDataUrl);
-                const {data} = response;
-                // console.log('data', data);
-                const parser = Readable.from([data]).pipe(
-                    parse({
-                        from_line: 1,
-                        columns: true,
-                        relax_column_count: true
-                    }));
-                for await (const record of parser) {
-                    if (Object.keys(record).length > 9) {
-                        // console.log('[hourly] record - ', record['Date/Time']);
-                        hourlyData.push(record);
+        if (station['HLY First Year'] !== "" && station['HLY Last Year'] !== "") {
+            for (let year = station['HLY First Year']; year <= station['HLY Last Year']; year++) {
+                for (let month = 1; month <= 12; month++) {
+                    let hourlyDataUrl = `https://climate.weather.gc.ca/climate_data/bulk_data_e.html?format=csv&stationID=${station['Station ID']}&Year=${year}&Month=${month}&timeframe=1&submit= Download+Data`;
+                    const response = await axios.get(hourlyDataUrl);
+                    const {data} = response;
+                    console.log('hourly data', data);
+                    const parser = Readable.from([data]).pipe(
+                        parse({
+                            from_line: 1,
+                            columns: true,
+                            relax_column_count: true
+                        }));
+                    for await (const record of parser) {
+                        console.log('[hourly] record - ', record['Date/Time']);
+                        if (Object.keys(record).length > 9) {
+                            hourlyData.push(record);
+                        }
                     }
                 }
             }
@@ -190,7 +279,7 @@ async function downloadDailyData(station) {
             let dailyDataUrl = `https://climate.weather.gc.ca/climate_data/bulk_data_e.html?format=csv&stationID=${station['Station ID']}&Year=${year}&timeframe=2&submit=%20Download+Data`;
             const response = await axios.get(dailyDataUrl);
             const {data} = response;
-            // console.log('data', data);
+            // console.log('daily data', data);
             const parser = Readable.from([data]).pipe(
                 parse({
                     from_line: 1,
@@ -198,6 +287,7 @@ async function downloadDailyData(station) {
                     relax_column_count: true
                 }));
             for await (const record of parser) {
+                console.log('[daily] record - ', record['Date/Time']);
                 let count = 0;
                 Object.entries(record).map(entry => {
                     if (entry[1] === '') {
@@ -206,7 +296,6 @@ async function downloadDailyData(station) {
                     }
                 });
                 if (Object.keys(record).length - count > 8) {
-                    // console.log('[daily] record - ', record['Date/Time']);
                     dailyData.push(record);
                 }
             }
@@ -232,7 +321,7 @@ async function downloadMonthlyData(station) {
         let monthlyDataUrl = `https://climate.weather.gc.ca/climate_data/bulk_data_e.html?format=csv&stationID=${station['Station ID']}&timeframe=3&submit=%20Download+Data`;
         const response = await axios.get(monthlyDataUrl);
         const {data} = response;
-        // console.log('data', data);
+        // console.log('monthly data', data);
         const parser = Readable.from([data]).pipe(
             parse({
                 from_line: 1,
@@ -240,6 +329,7 @@ async function downloadMonthlyData(station) {
                 relax_column_count: true
             }));
         for await (const record of parser) {
+            console.log('[monthly] record - ', record['Date/Time']);
             let count = 0;
             Object.entries(record).map(entry => {
                 if (entry[1] === '') {
@@ -248,7 +338,6 @@ async function downloadMonthlyData(station) {
                 }
             });
             if (Object.keys(record).length - count > 7) {
-                // console.log('[monthly] record - ', record['Date/Time']);
                 monthlyData.push(record);
             }
 

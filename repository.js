@@ -1,13 +1,14 @@
 const NotImplementedException = require('./not-implemented-exception');
 
-class Repository{
+class Repository {
 
-    createStation(station){
+    createStation(station) {
         throw new NotImplementedException();
     }
 
-    createMonthlyData(monthlyData){
+    createMonthlyData(monthlyData) {
         throw new NotImplementedException();
     }
 }
+
 module.exports = Repository;

@@ -1,14 +1,15 @@
 const Dao = require('./dao');
 
-class StationDao extends Dao{
+class StationDao extends Dao {
 
-    constructor(repository){
+    constructor(repository) {
         super();
         this._repository = repository;
     }
 
-    create(item) {
-        return this._repository.createStation(item);
+    async create(item) {
+        return await this._repository.createStation(item);
     }
 }
+
 module.exports = StationDao;

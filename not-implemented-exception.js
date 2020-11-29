@@ -3,4 +3,5 @@ class NotImplementedException extends Error {
         super('Not Implemented Exception');
     }
 }
+
 module.exports = NotImplementedException;

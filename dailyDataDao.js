@@ -1,6 +1,6 @@
 const Dao = require('./dao');
 
-class MonthlyDataDao extends Dao {
+class DailyDataDao extends Dao {
 
     constructor(repository) {
         super();
@@ -8,8 +8,8 @@ class MonthlyDataDao extends Dao {
     }
 
     async create(item) {
-        return await this._repository.createMonthlyData(item);
+        return await this._repository.createDailyData(item);
     }
 }
 
-module.exports = MonthlyDataDao;
+module.exports = DailyDataDao;
